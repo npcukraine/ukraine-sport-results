@@ -15,8 +15,21 @@ const toggle=$('contrast');
 function contrast(enabled){document.documentElement.classList.toggle('contrast',enabled);toggle.setAttribute('aria-pressed',String(enabled));}
 try{contrast(localStorage.getItem('contrast')==='true');}catch{}
 toggle.addEventListener('click',()=>{const enabled=toggle.getAttribute('aria-pressed')!=='true';contrast(enabled);try{localStorage.setItem('contrast',String(enabled));}catch{}});
-const events={'МТ':'Міжнародний турнір','МЗ':'Міжнародні змагання','ЧС':'Чемпіонат світу','ЧЄ':'Чемпіонат Європи','КС':'Кубок світу','КЄ':'Кубок Європи'};
-const eventName=name=>name.replace(/^(МТ|МЗ|ЧС|ЧЄ|КС|КЄ)(?=\s|$|[.:])/u,code=>events[code]);
+// Додавайте нові скорочення та їхні повні назви до цього словника.
+const eventNames = new Map([
+ ['ЧС', 'Чемпіонат світу'],
+ ['МТ', 'Міжнародний турнір'],
+ ['КЄ', 'Кубок Європи'],
+ ['КС', 'Кубок світу'],
+ ['ПІ', 'Паралімпійські ігри'],
+ ['ЧЄ', 'Чемпіонат Європи'],
+ ['ЄМІ', 'Європейські молодіжні ігри'],
+ ['МЗ', 'Міжнародні змагання'],
+]);
+const eventName = name => name.trim().replace(
+ /^[\p{L}\p{N}]+(?=$|[\s.:,–—-])/u,
+ code => eventNames.get(code.toLocaleUpperCase('uk')) ?? code,
+);
 const normalizeGroup=value=>({'ОРА':'УОРА','УОРА':'УОРА','ВРФР':'РФР','РФР':'РФР','СЛУХ':'слух','ЗІР':'зір'})[value.trim().toUpperCase()];
 const groups=r=>[...new Set(r.group.split(/[,;]/).map(normalizeGroup).filter(Boolean))];
 const medals=[['Золото','gold','#f3bf28'],['Срібло','silver','#98a9bf'],['Бронза','bronze','#bd764c']];
