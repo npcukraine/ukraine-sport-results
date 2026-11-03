@@ -16,6 +16,9 @@ tr[hidden] { display:none !important }
 .summary-row button { width:100%; text-align:start; background:transparent; border:none }
 .contrast .summary-row { background:#000 }
 @media(max-width:650px) { #report-controls { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem } .summary-row td:first-child { display:block } }
+.sport-badge { width:1.35rem; height:1.35rem; margin-inline-end:.4rem; vertical-align:middle; flex:none }
+.sport-name { display:inline-flex; align-items:center }
+.contrast .sport-badge { outline:1px solid white; border-radius:5px }
 header, main, th, td { text-align: center }
 h1 { margin-inline: auto }
 header {
@@ -94,6 +97,61 @@ const eventName = name => name.trim().replace(
 );
 const normalizeGroup=value=>({'ОРА':'УОРА','УОРА':'УОРА','ВРФР':'РФР','РФР':'РФР','СЛУХ':'слух','ЗІР':'зір'})[value.trim().toUpperCase()];
 const groups=r=>[...new Set(r.group.split(/[,;]/).map(normalizeGroup).filter(Boolean))];
+const sportSymbols = [
+ [/бадмінтон/i,'M5 13l4-4 7-4 3 3-4 7-4 4zM9 9l6 6M6 13l5 5'],
+ [/баскетбол/i,'M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM5 12h14M12 5v14M7 7q9 5 0 10M17 7q-9 5 0 10'],
+ [/біатлон|стрільба кульова/i,'M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM12 4v2m0 12v2M4 12h2m12 0h2'],
+ [/більярд|боулінг|бочча|голбол/i,'M10 6a6 6 0 1 0 0 12 6 6 0 0 0 0-12zM8 9h.1m4 2h.1m-4 3h.1M17 16l3 2'],
+ [/боротьба|дзюдо|карате|тхеквондо|армрестлінг/i,'M8 6l4 4 4-4 4 4-3 3-2-2v8H9v-8l-2 2-3-3zM9 15h6m-3 0 2 4'],
+ [/велосипед/i,'M7 12a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm10 0a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM7 16l4-8 4 8H7m8 0 2-10h3'],
+ [/веслування|каное/i,'M4 15q8 10 16 0H4zM8 15l9-10m-2 2 2-2 2 1-3 3'],
+ [/вітрильний/i,'M12 4v12M11 5 5 14h6m2-7 5 7h-5M4 17h16l-3 3H7z'],
+ [/волейбол/i,'M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM12 12l-1-7m1 7 6 4m-6-4-6 4m4-5 7-4m-4 7v5'],
+ [/лиж|сноуборд/i,'M5 18l13-9m-9 10 10-7M4 18q2 3 4 0m0 1q2 3 4 0M14 5l-3 8m5-7-3 8'],
+ [/танці|легка атлетика/i,'M14 5h.1M13 8l-3 5 5 2 2 4M10 13l-3 5H4m8-8 4 1 3-2M9 8 6 11'],
+ [/триатлон/i,'M6 6h.1m6 0h.1m6 0h.1M4 11l2-2 2 2m2 0 2-2 2 2m2 0 2-2 2 2M4 16q2-2 4 0t4 0 4 0 4 0'],
+ [/пауерліфтинг/i,'M4 9v6m3-8v10m10-10v10m3-8v6M7 12h10'],
+ [/плавання/i,'M5 13l4-4 4 3m3-3h.1M4 16q2-2 4 0t4 0 4 0 4 0M4 19q2-2 4 0t4 0 4 0 4 0'],
+ [/регбі/i,'M5 18q-1-10 14-13 1 10-14 13zM9 14l6-6m-5 3 3 3m-1-5 3 3'],
+ [/риболо/i,'M4 12q7-8 12 0-5 8-12 0zm12 0 4-4v8zm-8-1h.1'],
+ [/орієнтування/i,'M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM15 8l-2 6-5 2 2-6z'],
+ [/лука/i,'M8 5q13 7 0 14V5zm-4 7h15m-3-3 3 3-3 3'],
+ [/теніс/i,'M14 5q5 0 5 5t-5 5-5-5 5-5zm-4 9-5 5m7-11 4 4m0-4-4 4'],
+ [/фехтування/i,'M6 18 18 6m-9 7 3 3m-8 3 3-3M15 9l3 1 1-5-5 1z'],
+ [/футбол|футзал|гандбол/i,'M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14zm0 4 3 2-1 4h-4l-1-4zm0-4v4m3 2 4-1m-5 5 3 3m-7-3-3 3m2-7-4-1'],
+ [/шахи/i,'M7 19h10l-1-4h-2v-4h3V6h-3v2h-4V6H7v5h3v4H8z'],
+ [/шашки|керлінг/i,'M5 14c0-4 14-4 14 0v2c0 4-14 4-14 0zm0 0c0 4 14 4 14 0m-9-4V7h4v3'],
+ [/гольф/i,'M10 17V5l7 3-7 3m-5 7q7-3 14 0m-3-4h.1'],
+ [/кінний/i,'M6 19h12l-3-4 1-4-3-4V5l-4 3-4 5 3 2 4-2-2 4zm5-9h.1'],
+];
+function sportBadge(name){
+ const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+ svg.setAttribute('viewBox','0 0 24 24');
+ svg.setAttribute('aria-hidden','true');
+ svg.classList.add('sport-badge');
+ const motif=sportSymbols.find(([pattern])=>pattern.test(name));
+ svg.innerHTML='<rect width="24" height="24" rx="5" fill="#0a326a"/><path d="M19 2l2 2-2 2-2-2z" fill="#ffd447"/>';
+ if(motif){
+  const mark=document.createElementNS(svg.namespaceURI,'path');
+  mark.setAttribute('d',motif[1]);
+  mark.setAttribute('fill','none');
+  mark.setAttribute('stroke','white');
+  mark.setAttribute('stroke-width','1.35');
+  mark.setAttribute('stroke-linecap','round');
+  mark.setAttribute('stroke-linejoin','round');
+  svg.append(mark);
+ } else {
+  const mark=document.createElementNS(svg.namespaceURI,'text');
+  mark.setAttribute('x','12');
+  mark.setAttribute('y','16');
+  mark.setAttribute('text-anchor','middle');
+  mark.setAttribute('fill','white');
+  mark.setAttribute('font-size','9');
+  mark.textContent=name.split(/\s+/).slice(0,2).map(word=>word[0]).join('').toLocaleUpperCase('uk');
+  svg.append(mark);
+ }
+ return svg;
+}
 const medals=[['Золото','gold','#f3bf28'],['Срібло','silver','#98a9bf'],['Бронза','bronze','#bd764c']];
 try {
  const response=await fetch('./results.json',{cache:'no-cache'});
@@ -135,7 +193,7 @@ try {
    const tr=document.createElement('tr');
    const values=[eventName(r.event),r.sport,groups(r).join(', '),r.dates,[r.city,r.country].filter(Boolean).join(', '),r.gold,r.silver,r.bronze];
    const labels=['Захід','Вид спорту','Нозологія','Дати','Місце','Золото','Срібло','Бронза'];
-   for(const [i,value] of values.entries()){const cell=tr.insertCell();cell.dataset.label=labels[i];cell.textContent=value==null||value===''?'—':value;}
+   for(const [i,value] of values.entries()){const cell=tr.insertCell();cell.dataset.label=labels[i];cell.textContent=value==null||value===''?'—':value; if(i===1&&value){const name=document.createElement('span');name.className='sport-name';name.append(sportBadge(value),value);cell.replaceChildren(name);}}
    return tr;
   }
   const buckets=new Map();
@@ -156,7 +214,10 @@ try {
    cell.colSpan=5;
    const button=document.createElement('button');
    button.type='button';
-   button.textContent=(open?'▾ ':'▸ ')+labelFor(key)+' ('+records.length+')';
+   const arrow=document.createTextNode(open?'▾ ':'▸ ');
+   button.append(arrow);
+   if(mode==='sport' && records[0].sport) button.append(sportBadge(key));
+   button.append(labelFor(key)+' ('+records.length+')');
    button.setAttribute('aria-expanded',String(open));
    cell.dataset.label=modeNames[mode];
    cell.append(button);
@@ -171,7 +232,7 @@ try {
     const next=!expanded.has(expansionKey);
     if(next) expanded.add(expansionKey); else expanded.delete(expansionKey);
     button.setAttribute('aria-expanded',String(next));
-    button.textContent=(next?'▾ ':'▸ ')+labelFor(key)+' ('+records.length+')';
+    arrow.data=next?'▾ ':'▸ ';
     for(const row of details) row.hidden=!next;
    });
    return [tr,...details];
