@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="uk"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Медалі України · 2026</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#eef3fa;color:#112241;font:16px system-ui}header{background:#0a2248;color:white;padding:3rem max(5vw,1rem);border-bottom:6px solid #ffd44d}h1{font-size:clamp(2rem,6vw,4rem);margin:.3em 0}main{max-width:1150px;margin:auto;padding:1.5rem}section{display:flex;gap:.7rem;flex-wrap:wrap;margin-bottom:1rem}.card{flex:1;min-width:100px;background:white;border-radius:16px;padding:1rem;border-top:5px solid var(--medal)}strong{display:block;font-size:2rem}input,select{padding:.7rem;border:1px solid #a3afc2;border-radius:8px;font:inherit;margin:.3rem}#grid{overflow:auto;background:white;border-radius:14px}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:.7rem;border-bottom:1px solid #e4eaf3}th{background:#dce8fa}tbody tr:hover{background:#f5f8ff}
+</style>
+<header><div>УКРАЇНА · МІЖНАРОДНІ ЗМАГАННЯ</div><h1>Медалі України 2026</h1><div>Результати виступів українських спортсменів</div></header>
+<main><section id="totals" aria-label="Медальні підсумки"></section><label>Пошук <input id="q" type="search" placeholder="Назва, країна, місто"></label><label>Вид спорту <select id="sport"><option value="">Усі</option></select></label><label>Нозологія <select id="group"><option value="">Усі</option></select></label><p id="status" role="status">Завантаження…</p><div id="grid"><table><thead><tr><th>Захід</th><th>Вид спорту</th><th>Нозологія</th><th>Дати</th><th>Місце</th><th>Золото</th><th>Срібло</th><th>Бронза</th></tr></thead><tbody id="rows"></tbody></table></div></main>
+<script type="module">
+const $=id=>document.getElementById(id);
+const groups=r=>r.group.split(',').map(s=>s.trim()).filter(Boolean);
+const medals=[['Золото','gold','#f3bf28'],['Срібло','silver','#98a9bf'],['Бронза','bronze','#bd764c']];
+try {
+ const response=await fetch('./results.json',{cache:'no-cache'});
+ if(!response.ok) throw new Error(response.status);
+ const {results,updatedAt}=await response.json();
+ for(const [id,values] of [['sport',results.map(r=>r.sport)],['group',results.flatMap(groups)]])
+  for(const value of [...new Set(values.filter(Boolean))].sort((a,b)=>a.localeCompare(b,'uk'))) $(id).add(new Option(value,value));
+ function render(){
+  const query=$('q').value.trim().toLocaleLowerCase('uk');
+  const matching=results.filter(r=>[r.event,r.country,r.city].join(' ').toLocaleLowerCase('uk').includes(query)&&(!$('sport').value||r.sport===$('sport').value)&&(!$('group').value||groups(r).includes($('group').value)));
+  $('status').textContent=matching.length+' записів · Оновлено '+new Date(updatedAt).toLocaleString('uk-UA',{timeZone:'Europe/Kyiv'});
+  $('totals').replaceChildren(...medals.map(([label,key,color])=>{
+   const card=document.createElement('div');card.className='card';card.style.setProperty('--medal',color);
+   const number=document.createElement('strong');number.textContent=matching.reduce((sum,r)=>sum+(r[key]??0),0);card.append(number,label);return card;
+  }));
+  $('rows').replaceChildren(...matching.map(r=>{
+   const tr=document.createElement('tr');
+   for(const value of [r.event,r.sport,r.group,r.dates,[r.city,r.country].filter(Boolean).join(', '),r.gold,r.silver,r.bronze])tr.insertCell().textContent=value==null||value===''?'—':value;
+   return tr;
+  }));
+ }
+ for(const id of ['q','sport','group']) $(id).addEventListener('input',render);
+ render();
+}catch(error){$('status').textContent='Не вдалося завантажити результати. Спробуйте оновити сторінку.';}
+</script></html>
+
