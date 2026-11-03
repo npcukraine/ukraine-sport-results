@@ -20,7 +20,8 @@ response.raise_for_status()
 header, *rows = response.json()["values"]
 expected = ["Назва заходу", "Вид спорту", "Нозологія / нозології",
             "Дати за джерелом", "Країна", "Місто"]
-if header[:6] != expected or header[9:12] != ["Золото", "Срібло", "Бронза"]:
+alternate = expected[:3] + ["Дати заходу"] + expected[4:]
+if header[:6] not in (expected, alternate) or header[9:12] != ["Золото", "Срібло", "Бронза"]:
     raise ValueError("Перевірте назви й порядок колонок.")
 results = []
 for index, row in enumerate(rows, 2):
