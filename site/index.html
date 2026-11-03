@@ -106,6 +106,17 @@ const eventName = name => name.trim().replace(
  /^[\p{L}\p{N}]+(?=$|[\s.:,–—-])/u,
  code => eventNames.get(code.toLocaleUpperCase('uk')) ?? code,
 );
+function eventCategory(value){
+ const name=eventName(value);
+ const rank=eventPriority(value);
+ const labels={1:'Чемпіонати світу',2:'Чемпіонати Європи',4:'Шахова Олімпіада'};
+ if(labels[rank]) return labels[rank];
+ if(rank===3) return /європи/iu.test(name)?'Кубки Європи':'Кубки світу';
+ if(rank===6) return 'Молодіжні, юніорські та інші вікові змагання';
+ if(/^міжнародн\S*\s+турнір/iu.test(name)) return 'Міжнародні турніри';
+ if(/^міжнародн\S*\s+змагання/iu.test(name)) return 'Міжнародні змагання';
+ return name;
+}
 function eventPriority(value){
  const name=eventName(value).toLocaleLowerCase('uk');
  if (/(?:паралімпійськ|дефлімпійськ)\p{L}*\s+ігр/u.test(name)) return 0;
@@ -224,12 +235,12 @@ try {
   for(const r of matching){
    const categories=groups(r);
    const key=r.priority===0 ? 'featured:'+r.eventKey : mode==='sport' ? r.sport||'Вид спорту не вказано'
-    : mode==='event' ? r.eventKey : categories.length>1 ? 'Кілька нозологій' : categories[0]||'Нозологію не вказано';
+    : mode==='event' ? eventCategory(r.event) : categories.length>1 ? 'Кілька нозологій' : categories[0]||'Нозологію не вказано';
    if(!buckets.has(key)) buckets.set(key,[]);
    buckets.get(key).push(r);
   }
   const featured=key=>key.startsWith('featured:');
-  const labelFor=key=>featured(key) ? eventLabels.get(key.slice(9)) : mode==='event' ? eventLabels.get(key) : key;
+  const labelFor=key=>featured(key) ? eventLabels.get(key.slice(9)) : key;
   const rank=records=>Math.min(...records.map(r=>r.priority));
   $('rows').replaceChildren(...[...buckets].sort((a,b)=>rank(a[1])-rank(b[1])||labelFor(a[0]).localeCompare(labelFor(b[0]),'uk')).flatMap(([key,records])=>{
    const expansionKey=mode+':'+key;
@@ -252,7 +263,7 @@ try {
     total.dataset.label=label;
     total.textContent=records.some(r=>r[metal]!=null) ? records.reduce((sum,r)=>sum+(r[metal]??0),0) : '—';
    }
-   const details=[...records].sort((a,b)=>a.priority-b.priority||eventName(a.event).localeCompare(eventName(b.event),'uk')||a.sport.localeCompare(b.sport,'uk')).map(detailRow);
+   const details=[...records].sort((a,b)=>a.priority-b.priority||(mode==='event'?a.sport.localeCompare(b.sport,'uk'):0)||eventName(a.event).localeCompare(eventName(b.event),'uk')||a.sport.localeCompare(b.sport,'uk')).map(detailRow);
    for(const row of details) row.hidden=!open;
    button.addEventListener('click',()=>{
     const next=!expanded.has(expansionKey);
