@@ -20,6 +20,10 @@ tr[hidden] { display:none !important }
 .sport-badge { width:1.35rem; height:1.35rem; margin-inline-end:.4rem; vertical-align:middle; flex:none }
 .sport-name { display:inline-flex; align-items:center }
 .contrast .sport-badge { outline:1px solid white; border-radius:5px }
+#event-options { text-align:start; display:grid; gap:.2rem; margin:.4rem 0 }
+#event-options input { display:inline; width:auto; min-height:0 }
+.medals-total { font-size:1.2rem; font-weight:750; margin:.3rem 0 1rem }
+.event-extra { display:block; text-align:start; font-size:.9rem; margin-top:.4rem }
 header, main, th, td { text-align: center }
 h1 { margin-inline: auto }
 header {
@@ -67,10 +71,11 @@ header h1 { max-width: 28ch; font-size: clamp(1.65rem,4.7vw,3.9rem); letter-spac
 .medal-art[data-metal="bronze"] { --medal-x: 81.07%; }
 .contrast header::before { background: #ffdf33; height: 4px; }
 </style>
-<header><div>УКРАЇНА · МІЖНАРОДНІ ЗМАГАННЯ</div><h1>Результати виступу українських спортсменів з інвалідністю на міжнародних спортивних змаганнях</h1><p>Медальні підсумки · 2026</p><button id="contrast" type="button" aria-pressed="false">Високий контраст</button></header>
-<main><section id="totals" aria-label="Медальні підсумки"></section><label>Пошук <input id="q" type="search" placeholder="Назва, країна, місто"></label><label>Вид спорту <select id="sport"><option value="">Усі</option></select></label><label>Нозологія <select id="group"><option value="">Усі</option></select></label><div id="report-controls">
+<header><div>УКРАЇНА · МІЖНАРОДНІ СПОРТИВНІ ЗМАГАННЯ</div><h1>Результати виступу українських спортсменів з інвалідністю на міжнародних спортивних змаганнях</h1><p>Медальні підсумки · 2026</p><button id="contrast" type="button" aria-pressed="false">Високий контраст</button></header>
+<main><section id="totals" aria-label="Медальні підсумки"></section><p id="medals-total" class="medals-total"></p><label>Пошук <input id="q" type="search" placeholder="Назва, країна, місто"></label><label>Вид спорту <select id="sport"><option value="">Усі</option></select></label><label>Нозологія <select id="group"><option value="">Усі</option></select></label><div id="report-controls">
 <label>Групування <select id="mode"><option value="sport">За видами спорту</option><option value="event">За подіями</option><option value="group">За нозологією</option></select></label>
-<label>Подія <select id="event"><option value="">Усі</option></select></label>
+<details id="event"><summary>Види змагань</summary><fieldset id="event-options"><legend>Оберіть один або кілька видів змагань</legend></fieldset></details>
+<label>Рейтингові <select id="ranking"><option value="">Усі</option><option value="true">Так</option><option value="false">Ні</option></select></label>
 <label>Країна <select id="country"><option value="">Усі</option></select></label>
 <label>Період від <input id="from" type="date"></label>
 <label>до <input id="to" type="date"></label>
@@ -191,15 +196,21 @@ try {
  const modeNames={sport:'Вид спорту',event:'Подія',group:'Нозологія'};
 
  const eventLabels=new Map();
- const eventRanks=new Map();
  results.forEach((r,i)=>{
   r.priority=eventPriority(r.event);
   r.eventKey=eventKey(r,i);
-  eventRanks.set(r.eventKey,Math.min(r.priority,eventRanks.get(r.eventKey)??Infinity));
   const label=r.priority===0 ? eventName(r.event) : [eventName(r.event),r.dates,r.country,r.city,r.eventId?'':r.sport].filter(Boolean).join(' · ');
   if(!eventLabels.has(r.eventKey)) eventLabels.set(r.eventKey,label);
  });
- for(const [key,label] of [...eventLabels].sort((a,b)=>eventRanks.get(a[0])-eventRanks.get(b[0])||a[1].localeCompare(b[1],'uk'))) $('event').add(new Option(label,key));
+ const eventNamesForFilter=[...new Set(results.map(r=>eventName(r.event)))];
+ for(const name of eventNamesForFilter.sort((a,b)=>eventPriority(a)-eventPriority(b)||a.localeCompare(b,'uk'))){
+  const label=document.createElement('label');
+  const checkbox=document.createElement('input');
+  checkbox.type='checkbox';
+  checkbox.value=name;
+  label.append(checkbox,name);
+  $('event-options').append(label);
+ }
  const expanded=new Set();
  for(const [id,values] of [['sport',results.map(r=>r.sport)],['group',results.flatMap(groups)],['country',results.map(r=>r.country)]])
   for(const value of [...new Set(values.filter(Boolean))].sort((a,b)=>a.localeCompare(b,'uk'))) $(id).add(new Option(value,value));
@@ -207,13 +218,16 @@ try {
   const query=$('q').value.trim().toLocaleLowerCase('uk');
   const from=$('from').value, to=$('to').value;
   const mode=$('mode').value;
+  const selectedEvents=new Set([...$('event-options').querySelectorAll('input:checked')].map(input=>input.value));
   const matching=results.filter(r=>[eventName(r.event),r.eventSource,r.sport,r.country,r.city,...groups(r)].join(' ').toLocaleLowerCase('uk').includes(query)&&(!$('sport').value||r.sport===$('sport').value)&&(!$('group').value||groups(r).includes($('group').value))
-   && (!$('event').value || r.eventKey===$('event').value)
+   && (!selectedEvents.size || selectedEvents.has(eventName(r.event)))
+   && (!$('ranking').value || String(r.ranking)===$('ranking').value)
    && (!$('country').value || r.country===$('country').value)
    && (!from || (r.endDate && r.endDate>=from))
    && (!to || (r.startDate && r.startDate<=to))
    && (!from || !to || from<=to));
   $('status').textContent='Змагань: '+eventCount(matching)+' · Оновлено '+new Date(updatedAt).toLocaleString('uk-UA',{timeZone:'Europe/Kyiv'});
+  $('medals-total').textContent='Медалей разом: '+matching.reduce((sum,r)=>sum+(r.gold??0)+(r.silver??0)+(r.bronze??0),0);
   $('totals').replaceChildren(...medals.map(([label,key,color])=>{
    const card=document.createElement('div');card.className='card';card.style.setProperty('--medal',color);
    const medal=document.createElement('span');
@@ -228,6 +242,15 @@ try {
    const values=[eventName(r.event),r.sport,groups(r).join(', '),r.dates,[r.city,r.country].filter(Boolean).join(', '),r.gold,r.silver,r.bronze];
    const labels=['Захід','Вид спорту','Нозологія','Дати','Місце','Золото','Срібло','Бронза'];
    for(const [i,value] of values.entries()){const cell=tr.insertCell();cell.dataset.label=labels[i];cell.textContent=value==null||value===''?'—':value; if(i===1&&value){const name=document.createElement('span');name.className='sport-name';name.append(sportBadge(value),value);cell.replaceChildren(name);}}
+   const eventCell=tr.cells[0];
+   const fields=[['Спортсменів з України',r.ukrainianAthletes],['Спортсменів загалом',r.totalAthletes],['Країн-учасниць',r.countries],['Рейтингові змагання',r.ranking==null?null:r.ranking?'Так':'Ні'],['Протокол або результати',r.protocol]];
+   for(const [label,value] of fields){
+    if(value==null || value==='') continue;
+    const item=document.createElement('span');
+    item.className='event-extra';
+    item.textContent=label+': '+value;
+    eventCell.append(item);
+   }
    return tr;
   }
   const buckets=new Map();
@@ -274,7 +297,7 @@ try {
    return [tr,...details];
   }));
  }
- for(const id of ['q','sport','group','mode','event','country','from','to']) $(id).addEventListener('input',render);
+ for(const id of ['q','sport','group','mode','event','ranking','country','from','to']) $(id).addEventListener('input',render);
  render();
 }catch(error){$('status').textContent='Не вдалося завантажити результати. Спробуйте оновити сторінку.';}
 </script></html>
