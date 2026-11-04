@@ -74,6 +74,13 @@ if header[:6] not in (expected, alternate) or any(header.count(name) != 1 for na
     raise ValueError("Перевірте назви й порядок колонок.")
 medal_columns = [header.index(name) for name in medal_headers]
 event_id_column = header.index("ID події") if "ID події" in header else None
+detail_columns = {
+    "ukrainianAthletes": "Спортсменів з України",
+    "totalAthletes": "Спортсменів загалом",
+    "countries": "Країн-учасниць",
+    "ranking": "Рейтингові змагання",
+    "protocol": "Протокол, або результати",
+}
 results = []
 for index, row in enumerate(rows, 2):
     row = [" ".join(value.split()) for value in (row + [""] * len(header))[:len(header)]]
@@ -81,6 +88,14 @@ for index, row in enumerate(rows, 2):
     if not row[0] or not any(medal_values):
         continue
     record = dict(zip(("event", "sport", "group", "dates", "country", "city"), row[:6]))
+    for key, label in detail_columns.items():
+        if label in header and (value := row[header.index(label)]):
+            if key == "ranking":
+                rating = {"true": True, "false": False, "так": True, "ні": False, "істина": True, "хибність": False}.get(value.casefold())
+                if rating is not None:
+                    record[key] = rating
+            else:
+                record[key] = value
     record["eventSource"] = record["event"]
     event = record["event"]
     prefix = re.match(r"^\w+(?=$|[\s.:,–—-])", event)
