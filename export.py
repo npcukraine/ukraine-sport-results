@@ -59,7 +59,7 @@ credentials = Credentials.from_service_account_info(
     scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"],
 )
 sheet_id = quote(os.environ["GOOGLE_SHEET_ID"], safe="")
-range_name = quote("'Результати'!A1:N", safe="")
+range_name = quote("'Результати'!A1:Z", safe="")
 response = AuthorizedSession(credentials).get(
     f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/{range_name}",
     timeout=30,
@@ -69,13 +69,16 @@ header, *rows = response.json()["values"]
 expected = ["Назва заходу", "Вид спорту", "Нозологія / нозології",
             "Дати за джерелом", "Країна", "Місто"]
 alternate = expected[:3] + ["Дати заходу"] + expected[4:]
-if header[:6] not in (expected, alternate) or header[9:12] != ["Золото", "Срібло", "Бронза"]:
+medal_headers = ["Золото", "Срібло", "Бронза"]
+if header[:6] not in (expected, alternate) or any(header.count(name) != 1 for name in medal_headers):
     raise ValueError("Перевірте назви й порядок колонок.")
+medal_columns = [header.index(name) for name in medal_headers]
 event_id_column = header.index("ID події") if "ID події" in header else None
 results = []
 for index, row in enumerate(rows, 2):
-    row = [" ".join(value.split()) for value in (row + [""] * 14)[:14]]
-    if not row[0].strip() or not any(row[9:12]):
+    row = [" ".join(value.split()) for value in (row + [""] * len(header))[:len(header)]]
+    medal_values = [row[column] for column in medal_columns]
+    if not row[0] or not any(medal_values):
         continue
     record = dict(zip(("event", "sport", "group", "dates", "country", "city"), row[:6]))
     record["eventSource"] = record["event"]
@@ -92,7 +95,7 @@ for index, row in enumerate(rows, 2):
     if record["country"] in {"Корея", "Боснія"}:
         print(f"Рядок {index}: країна потребує уточнення")
     record["eventId"] = row[event_id_column] if event_id_column is not None else ""
-    for key, value in zip(("gold", "silver", "bronze"), row[9:12]):
+    for key, value in zip(("gold", "silver", "bronze"), medal_values):
         if value and not value.isdecimal():
             raise ValueError(f"Рядок {index}: медалі мають бути цілим невід'ємним числом.")
         record[key] = int(value) if value else None
