@@ -347,14 +347,40 @@ let results=[], updatedAt='', refreshing=false;
    $('event').querySelector('summary').focus();
   }
  });
+const LIVE_RESULTS_URL="https://script.google.com/macros/s/AKfycbzU5SNjHFQY3l-AIaKlX9aUNvbXdjHcPSWTxpqJEBZBRBhvW26jqmVKpKbfx1OzYRFn/exec";
+let requestSequence=0;
+function loadLiveResults(){
+ return new Promise((resolve,reject)=>{
+  const callback='medalsCallback_'+Date.now()+'_'+(++requestSequence);
+  const script=document.createElement('script');
+  const cleanup=()=>{
+   clearTimeout(timer);
+   script.remove();
+   delete window[callback];
+  };
+  const timer=setTimeout(()=>{
+   cleanup();
+   reject(new Error('Timeout'));
+  },25000);
+  window[callback]=data=>{
+   cleanup();
+   resolve(data);
+  };
+  script.onerror=()=>{
+   cleanup();
+   reject(new Error('Network error'));
+  };
+  script.src=LIVE_RESULTS_URL+'?callback='+encodeURIComponent(callback)+'&t='+Date.now();
+  document.head.append(script);
+ });
+}
  async function refresh(){
   if(refreshing) return;
   refreshing=true;
   $('refresh-data').disabled=true;
+  $('refresh-data').textContent='Оновлення…';
   try{
-   const response=await fetch('./results.json',{cache:'no-store'});
-   if(!response.ok) throw new Error(response.status);
-   const data=await response.json();
+   const data=await loadLiveResults();
    if(!Array.isArray(data.results)||!Number.isFinite(Date.parse(data.updatedAt))) throw new Error('Invalid report');
    if(data.updatedAt!==updatedAt){
     results=data.results;
@@ -368,6 +394,7 @@ let results=[], updatedAt='', refreshing=false;
   }finally{
    refreshing=false;
    $('refresh-data').disabled=false;
+   $('refresh-data').textContent='Оновити дані';
   }
  }
  $('refresh-data').addEventListener('click',refresh);
